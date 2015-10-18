@@ -12,6 +12,9 @@
 //#include "GameController.h"
 #include "MiniGameScene.h"
 #include "SimpleAudioEngine.h"
+#include "FlowFreeGameScene.h"
+
+
 USING_NS_CC;
 
 AppDelegate::AppDelegate() {
@@ -74,10 +77,10 @@ bool AppDelegate::applicationDidFinishLaunching() {
 //  g_vChooseTaste.push_back("peach");
 //  SceneChangeManager->enterMakeScene();
 //  SceneChangeManager->enterMakeBatterScene();
-    SceneChangeManager->enterSelectMacScene();
+//    SceneChangeManager->enterSelectMacScene();
 //    SceneChangeManager->enterPushBallScene();
     
-//    Director::getInstance()->runWithScene(MiniGameScene::scene());
+    Director::getInstance()->runWithScene(FlowFreeGameScene::scene());
     
     return true;
 }

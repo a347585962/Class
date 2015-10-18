@@ -26,6 +26,19 @@ public:
     virtual void onEnter();
     virtual void onEnterTransitionDidFinish();
     virtual void onExit();
+    
+    bool onTouchBegan(Touch *touch, Event *unused_event);
+    void onTouchMoved(Touch *touch, Event *unused_event);
+    void onTouchEnded(Touch *touch, Event *unused_event);
+private:
+    void initBall();
+    void initView();
+    int checkTouchBall(Vec2 pos);
+    Vec2 getFreamBoxPos(Vec2 pos);
+    
+    Sprite* m_pFream;
+    Sprite* m_pBallShadow;
+    Vec2 freamHasBoxButton[5][5];
 };
 
 
