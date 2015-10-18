@@ -142,6 +142,7 @@ void FlowFreeGameScene::onTouchEnded(Touch *touch, Event *unused_event)
     }
 }
 //检测点击到了哪个球上
+//
 int FlowFreeGameScene::checkTouchBall(Vec2 pos)
 {
     for (int i = 0; i<5; i++) {
