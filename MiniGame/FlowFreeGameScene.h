@@ -30,6 +30,14 @@ public:
     bool onTouchBegan(Touch *touch, Event *unused_event);
     void onTouchMoved(Touch *touch, Event *unused_event);
     void onTouchEnded(Touch *touch, Event *unused_event);
+    
+    void addFillBox(Vec2 pos,int colorType);
+    bool checkPosIsInVector(Vec2 pos);
+    bool checkPosIsInBoxCenter(Vec2 pos);
+    
+    //根据类型判断是否删除已有路径
+    bool checkLoad(int type);
+    void moveBack(Vec2 pos,int type);
 private:
     void initBall();
     void initView();
@@ -39,6 +47,16 @@ private:
     Sprite* m_pFream;
     Sprite* m_pBallShadow;
     Vec2 freamHasBoxButton[5][5];
+    
+    Vector<Sprite*> m_vGreenLoadSprite;
+    Vector<Sprite*> m_vYellowLoadSprite;
+    Vector<Sprite*> m_vBlueLoadSprite;
+    Vector<Sprite*> m_vOrangeLoadSprite;
+    Vector<Sprite*> m_vRedLoadSprite;
+    vector<Vec2> m_vAllLoadPos;
+   
+    Vec2 mOldLoadPos;
+    int m_iMoveCheckNum;
 };
 
 
