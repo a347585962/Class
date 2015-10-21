@@ -17,14 +17,17 @@
 //TAG = x*10 + y(即十位为横坐标，个位为纵坐标)
 
 Vec2 ballInFreamPos[5][2]={{Vec2(1,1),Vec2(2,4)},{Vec2(3,1),Vec2(4,4)},{Vec2(2,3),Vec2(2,0)},{Vec2(3,0),Vec2(4,3)},{Vec2(0,4),Vec2(1,0)}};
+
+int boxTag[25]={0,1,2,3,4,10,11,12,13,14,20,21,22,23,24,30,31,32,33,34,40,41,42,43,44};
+
 FlowFreeGameScene::FlowFreeGameScene() {
 
     m_pBallShadow = nullptr;
-    
-
     //阴影移动，过后的记录坐标值
     mOldLoadPos = Vec2::ZERO;
     m_iMoveCheckNum = 0;
+    mMyBallType = -1;
+    m_bGameIsOver =false;
 }
 
 FlowFreeGameScene::~FlowFreeGameScene() {
@@ -77,7 +80,7 @@ void FlowFreeGameScene::initView()
     _eventDispatcher->addEventListenerWithSceneGraphPriority(listener,this);
     
     
-    
+    this->schedule(schedule_selector(FlowFreeGameScene::checkOver),2.0);
 }
 void FlowFreeGameScene::initBall()
 {
@@ -103,18 +106,57 @@ Vec2 FlowFreeGameScene::getFreamBoxPos(Vec2 pos)
     Size sizeFream = m_pFream->getContentSize();
     return Vec2((int)(pos.x/(sizeFream.width/5)),(int)(pos.y/(sizeFream.height/5)));
 }
+
+void FlowFreeGameScene::checkOver(float dt)
+{
+    Vector<Node*> vector = m_pFream->getChildren();
+    int boxNum = 0;
+    for (int i = 0; i<vector.size(); i++) {
+        
+        int tag = vector.at(i)->getTag();
+        if (vector.at(i)->isVisible()) {
+            
+            if (checkTagVerts(tag)) {
+                boxNum++;
+            }
+        }
+    }
+    log("---->%d",boxNum);
+    if (boxNum == 25) {
+        
+        log("success");
+        m_bGameIsOver = true;
+        this->unschedule(schedule_selector(FlowFreeGameScene::checkOver));
+    }
+}
+bool FlowFreeGameScene::checkTagVerts(int tag)
+{
+
+    for (int i = 0; i<25; i++) {
+        
+        if (tag == boxTag[i]) {
+            return true;
+        }
+    }
+    return false;
+}
 bool FlowFreeGameScene::onTouchBegan(Touch *touch, Event *unused_event)
 {
+    if (m_bGameIsOver) {
+        
+        return false;
+    }
     
     Vec2 pos = m_pFream->convertToNodeSpace(touch->getLocation());
-    
     Size sizeFream = m_pFream->getContentSize();
-    
     Vec2 posNumFream = getFreamBoxPos(pos);
-   
     log("%d",checkTouchBall(posNumFream));
     if (checkTouchBall(posNumFream)!=-1) {
+        //如果点击到小球点的位置，则把所有此小球的填充路径去掉
+        deleteAllChildLoad(checkTouchBall(posNumFream));
+        
         int num = checkTouchBall(posNumFream);
+        mMyBallType = posNumFream.x*10 + posNumFream.y;
         if(!m_pBallShadow){
 
             m_pBallShadow = Sprite::create(__String::createWithFormat("images/minigame/flowfree/bottom-frame2_%d.png",num+1)->getCString());
@@ -122,6 +164,24 @@ bool FlowFreeGameScene::onTouchBegan(Touch *touch, Event *unused_event)
             //根据球的颜色顺序，设置阴影的TAG值
             m_pBallShadow->setTag(num + 100);
             m_pFream->addChild(m_pBallShadow,1);
+            
+            addFillBox(posNumFream,m_pBallShadow->getTag() - 100);
+        }
+    }
+    //如果点击到了一个已经有的位置，则把此位置以上的填充路径全部移除掉
+    if(checkPosIsInVector(posNumFream)){
+    
+        deleteUnLoad(posNumFream);
+        int num = checkTagInWhichVectro(posNumFream.x*10 + posNumFream.y);
+        mMyBallType = posNumFream.x*10 + posNumFream.y;
+        if(!m_pBallShadow){
+            
+            m_pBallShadow = Sprite::create(__String::createWithFormat("images/minigame/flowfree/bottom-frame2_%d.png",num+1)->getCString());
+            m_pBallShadow->setPosition(pos);
+            //根据球的颜色顺序，设置阴影的TAG值
+            m_pBallShadow->setTag(num + 100);
+            m_pFream->addChild(m_pBallShadow,1);
+//            addFillBox(posNumFream,m_pBallShadow->getTag() - 100);
         }
     }
     return true;
@@ -136,13 +196,9 @@ void FlowFreeGameScene::onTouchMoved(Touch *touch, Event *unused_event)
         if (m_pBallShadow->getPosition().x > 0 && m_pBallShadow->getPosition().y<m_pFream->getContentSize().height) {
             
             Vec2 posNumFream = getFreamBoxPos(m_pBallShadow->getPosition());
-            
             //测试此时的阴影位置，是否在某一个球上
             if (checkTouchBall(posNumFream)==-1) {
-                
-                
                 //如果未移动到有填充物的方框，将此方框填充
-
                 if (!checkPosIsInVector(posNumFream)) {
                     addFillBox(posNumFream,m_pBallShadow->getTag() - 100);
                 }else{
@@ -150,33 +206,26 @@ void FlowFreeGameScene::onTouchMoved(Touch *touch, Event *unused_event)
                     moveBack(posNumFream,m_pBallShadow->getTag() - 100);
                     
                 }
-                
-                
-                
             }else{
-                
                 //移动到自己，或者另一个，需要特别判断
                 if(checkTouchBall(posNumFream) == m_pBallShadow->getTag() - 100){
+                    if (posNumFream.x*10 + posNumFream.y == mMyBallType) {
+                        //checkLoad(m_pBallShadow->getTag() - 100);
+                    }else{
                     
-                    
-                    checkLoad(m_pBallShadow->getTag() - 100);
-                    
-                    
+                        addFillBox(posNumFream,m_pBallShadow->getTag() - 100);
+                        onTouchEnded(touch,unused_event);
+                        
+                    }
                 }else{
                     
                     onTouchEnded(touch,unused_event);
                 }
-                
-                
-                
             }
             
         }else{
             onTouchEnded(touch,unused_event);
         }
-        
-        
-    
     }
 }
 void FlowFreeGameScene::onTouchEnded(Touch *touch, Event *unused_event)
@@ -188,14 +237,111 @@ void FlowFreeGameScene::onTouchEnded(Touch *touch, Event *unused_event)
         m_iMoveCheckNum = 0;
     }
 }
+//将初始小球与终点小球填充颜色
+void FlowFreeGameScene::addBoxFromBall(Vec2 pos,int type)
+{
+    
+}
+//如果点击到了已经填充的路径中间某个点,则根据栈的原理，删除比其后入栈的无效路径
+void FlowFreeGameScene::deleteUnLoad(Vec2 pos)
+{
+    int tag = pos.x*10 + pos.y;
+    if(checkTagInWhichVectro(tag)!=-1){
+        deleteLoadFromVector(pos,checkTagInWhichVectro(tag));
+    }
+}
+//删除对应的无效路径
+//绿，黄，蓝，橙，红
+void FlowFreeGameScene::deleteLoadFromVector(Vec2 pos,int type)
+{
+    int tag = pos.x*10 + pos.y;
+    if (type == 0) {
+        int k = 100;
+        for (int i = 0;i< m_vGreenLoadSprite.size(); i++) {
+            if (m_vGreenLoadSprite.at(i)->getTag() == tag)
+                k = i;
+            if (k<i) {
+                auto sp = dynamic_cast<Sprite*>(m_vGreenLoadSprite.at(i));
+                sp->setVisible(false);
+            }
+        }
+    }else if (type == 1) {
+        int k = 100;
+        for (int i = 0;i<m_vYellowLoadSprite.size(); i++) {
+            if (m_vYellowLoadSprite.at(i)->getTag() == tag)
+                k = i;
+            
+            if (k<i) {
+                auto sp = dynamic_cast<Sprite*>(m_vYellowLoadSprite.at(i));
+                sp->setVisible(false);
+                }
+            }
+    }else if (type == 2) {
+        int k = 100;
+        for (int i = 0;i<m_vBlueLoadSprite.size(); i++) {
+            if (m_vBlueLoadSprite.at(i)->getTag() == tag)
+                k = i;
+            if (k<i) {
+                auto sp = dynamic_cast<Sprite*>(m_vBlueLoadSprite.at(i));
+                sp->setVisible(false);
+            }
+        }
+    }else if (type == 3) {
+        int k = 100;
+        for (int i = 0;i<m_vOrangeLoadSprite.size(); i++) {
+            if (m_vOrangeLoadSprite.at(i)->getTag() == tag)
+                k = i;
+            if (k<i) {
+                auto sp = dynamic_cast<Sprite*>(m_vOrangeLoadSprite.at(i));
+                sp->setVisible(false);
+            }
+        }
+    }else if (type == 4) {
+        int k = 100;
+        for (int i = 0;i<m_vRedLoadSprite.size(); i++) {
+            if (m_vRedLoadSprite.at(i)->getTag() == tag)
+                k = i;
+            if (k<i) {
+                auto sp = dynamic_cast<Sprite*>(m_vRedLoadSprite.at(i));
+                sp->setVisible(false);
+            }
+        }
+    }
+}
+//根据坐标位置转换的TAG值，判断精灵是否在哪一个向量容器里面
+int FlowFreeGameScene::checkTagInWhichVectro(int tag)
+{
+    for (auto sp:m_vGreenLoadSprite) {
+        if (sp->getTag() == tag) {
+            return 0;
+        }
+    }
+    for (auto sp:m_vYellowLoadSprite) {
+        if (sp->getTag() == tag) {
+            return 1;
+        }
+    }for (auto sp:m_vBlueLoadSprite) {
+        if (sp->getTag() == tag) {
+            return 2;
+        }
+    }
+    for (auto sp:m_vOrangeLoadSprite) {
+        if (sp->getTag() == tag) {
+            return 3;
+        }
+    }
+    for (auto sp:m_vRedLoadSprite) {
+        if (sp->getTag() == tag) {
+            return 4;
+        }
+    }
+    return -1;
+}
 //判断移动回滚,去掉不需要的填充物
 void FlowFreeGameScene::moveBack(Vec2 pos,int type)
 {
-    
     if(type == 0){
-        
         if (m_vGreenLoadSprite.size()>1) {
-            
             auto sp = dynamic_cast<Sprite*>(m_vGreenLoadSprite.at(m_vGreenLoadSprite.size() - 2));
             int tag = sp->getTag();
             int num = pos.x*10 + pos.y;
@@ -214,17 +360,10 @@ void FlowFreeGameScene::moveBack(Vec2 pos,int type)
                         ++it;
                     }
                 }
-                
             }
-            
         }
-        
-        
     }else if(type == 1){
-        
-        
         if (m_vYellowLoadSprite.size()>1) {
-            
             auto sp = dynamic_cast<Sprite*>(m_vYellowLoadSprite.at(m_vYellowLoadSprite.size() - 2));
             int tag = sp->getTag();
             int num = pos.x*10 + pos.y;
@@ -243,16 +382,10 @@ void FlowFreeGameScene::moveBack(Vec2 pos,int type)
                         ++it;
                     }
                 }
-                
             }
-            
         }
-        
     }else if(type == 2){
-        
-        
         if (m_vBlueLoadSprite.size()>1) {
-            
             auto sp = dynamic_cast<Sprite*>(m_vBlueLoadSprite.at(m_vBlueLoadSprite.size() - 2));
             int tag = sp->getTag();
             int num = pos.x*10 + pos.y;
@@ -271,16 +404,10 @@ void FlowFreeGameScene::moveBack(Vec2 pos,int type)
                         ++it;
                     }
                 }
-                
             }
-            
         }
-        
     }else if(type == 3){
-        
-        
         if (m_vOrangeLoadSprite.size()>1) {
-            
             auto sp = dynamic_cast<Sprite*>(m_vOrangeLoadSprite.at(m_vOrangeLoadSprite.size() - 2));
             int tag = sp->getTag();
             int num = pos.x*10 + pos.y;
@@ -299,16 +426,10 @@ void FlowFreeGameScene::moveBack(Vec2 pos,int type)
                         ++it;
                     }
                 }
-                
             }
-            
         }
-        
     }else if(type == 4){
-        
-        
         if (m_vRedLoadSprite.size()>1) {
-            
             auto sp = dynamic_cast<Sprite*>(m_vRedLoadSprite.at(m_vRedLoadSprite.size() - 2));
             int tag = sp->getTag();
             int num = pos.x*10 + pos.y;
@@ -327,16 +448,61 @@ void FlowFreeGameScene::moveBack(Vec2 pos,int type)
                         ++it;
                     }
                 }
-                
             }
+        }
+    }
+}
+void FlowFreeGameScene::deleteMoveBack(int type)
+{
+    if(type == 0){
+        if (m_vGreenLoadSprite.size()>1) {
+            for (auto sp:m_vGreenLoadSprite) {
+                
+                sp->removeFromParent();
+            }
+            m_vGreenLoadSprite.clear();
+        }
+        
+    }else if(type == 1){
+        if (m_vYellowLoadSprite.size()>1) {
+            for (auto sp:m_vYellowLoadSprite) {
+                sp->removeFromParent();
+            }
+            m_vYellowLoadSprite.clear();
+        }
+    }else if(type == 2){
+        if (m_vBlueLoadSprite.size()>1) {
+            for (auto sp:m_vBlueLoadSprite) {
+                
+                sp->removeFromParent();
+            }
+            m_vBlueLoadSprite.clear();
+        }
+        
+    }else if(type == 3){
+        if (m_vOrangeLoadSprite.size()>1) {
             
+            for (auto sp:m_vOrangeLoadSprite) {
+                
+                sp->removeFromParent();
+            }
+            m_vOrangeLoadSprite.clear();
+        }
+        
+    }else if(type == 4){
+        if (m_vRedLoadSprite.size()>1) {
+            
+            for (auto sp:m_vRedLoadSprite) {
+                
+                sp->removeFromParent();
+            }
+            m_vRedLoadSprite.clear();
         }
         
     }
 
 }
-
-bool FlowFreeGameScene::checkLoad(int type)
+bool FlowFreeGameScene::deleteAllChildLoad(int type)
 {
     if(type == 0){
         
@@ -345,71 +511,48 @@ bool FlowFreeGameScene::checkLoad(int type)
             for (auto sp:m_vGreenLoadSprite) {
                 
                 sp->removeFromParent();
-                
-                
-                
             }
             m_vGreenLoadSprite.clear();
         }
         
     }else if(type == 1){
-        
- 
         if (m_vYellowLoadSprite.size()!=0) {
             
             for (auto sp:m_vYellowLoadSprite) {
                 
 
                 sp->removeFromParent();
-                
-                
-                
             }
             m_vYellowLoadSprite.clear();
             
         }
         
     }else if(type == 2){
-        
-    
         if (m_vBlueLoadSprite.size()!=0) {
             
             for (auto sp:m_vBlueLoadSprite) {
                 
                 sp->removeFromParent();
-                
-                
-                
             }
             m_vBlueLoadSprite.clear();
         }
         
     }else if(type == 3){
-        
-      
         if (m_vOrangeLoadSprite.size()!=0) {
             
             for (auto sp:m_vOrangeLoadSprite) {
                 
                 sp->removeFromParent();
-                
-                
-                
             }
             m_vOrangeLoadSprite.clear();
         }
         
     }else if(type == 4){
-        
-  
         if (m_vRedLoadSprite.size()!=0) {
             
             for (auto sp:m_vRedLoadSprite) {
                 
                 sp->removeFromParent();
-                
-                
-                
             }
             m_vRedLoadSprite.clear();
         }
@@ -474,10 +617,6 @@ void FlowFreeGameScene::addFillBox(Vec2 pos,int colorType)
         m_vRedLoadSprite.pushBack(sprite);
         
     }
-    
-    
-    
-    
 }
 //检测点击到了哪个球上
 //

@@ -36,8 +36,16 @@ public:
     bool checkPosIsInBoxCenter(Vec2 pos);
     
     //根据类型判断是否删除已有路径
-    bool checkLoad(int type);
+    bool deleteAllChildLoad(int type);
     void moveBack(Vec2 pos,int type);
+    void deleteUnLoad(Vec2 pos);
+    int checkTagInWhichVectro(int tag);
+    void deleteLoadFromVector(Vec2 pos,int type);
+    void addBoxFromBall(Vec2 pos,int type);
+    void deleteMoveBack(int type);
+    
+    void checkOver(float dt);
+    bool checkTagVerts(int tag);
 private:
     void initBall();
     void initView();
@@ -57,6 +65,8 @@ private:
    
     Vec2 mOldLoadPos;
     int m_iMoveCheckNum;
+    int  mMyBallType;
+    bool m_bGameIsOver;
 };
 
 
